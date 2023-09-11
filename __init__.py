@@ -95,107 +95,109 @@ def convert_path_in_string(t, minlen=None, convert_to_abs_path=True):
     """
     if not iswindows:
         return t
-    wholestring = t
-    if not minlen:
-        minlen = (
-            len(
-                sorted(
-                    [
-                        x
-                        for x in re.split(r"[\\/]+", t)
-                        if not (g := set(x)).intersection(allcontrols_s)
-                        and not g.intersection(forbiddenchars)
-                        and not compregex.match(x)
-                    ],
-                    key=lambda q: len(q),
-                )[0]
+    try:
+        wholestring = t
+        if not minlen:
+            minlen = (
+                len(
+                    sorted(
+                        [
+                            x
+                            for x in re.split(r"[\\/]+", t)
+                            if not (g := set(x)).intersection(allcontrols_s)
+                            and not g.intersection(forbiddenchars)
+                            and not compregex.match(x)
+                        ],
+                        key=lambda q: len(q),
+                    )[0]
+                )
+                + 1
             )
-            + 1
-        )
 
-    def _get_path_from_string(lis):
-        allresults = []
-        lastin = 0
-        templist = lis.copy()
-        abscounter = 0
-        while True:
-            somethinfound = False
-            lastpath = ""
-            for la in range(0, len(templist)):
-                for q in range(1, len(templist) + 1):
-                    if q - la < minlen:
-                        continue
-                    joix = templist[la:q]
+        def _get_path_from_string(lis):
+            allresults = []
+            lastin = 0
+            templist = lis.copy()
+            abscounter = 0
+            while True:
+                somethinfound = False
+                lastpath = ""
+                for la in range(0, len(templist)):
+                    for q in range(1, len(templist) + 1):
+                        if q - la < minlen:
+                            continue
+                        joix = templist[la:q]
 
-                    if "\\" not in joix and "/" not in joix:
-                        continue
+                        if "\\" not in joix and "/" not in joix:
+                            continue
 
-                    joi = "".join(joix)
-                    if os.path.exists(joi):
-                        lastpath = joi
-                        lastin = q
-                        somethinfound = True
+                        joi = "".join(joix)
+                        if os.path.exists(joi):
+                            lastpath = joi
+                            lastin = q
+                            somethinfound = True
+                        if lastpath:
+                            if inforbidden(joi[-1]):
+                                break
+
                     if lastpath:
-                        if inforbidden(joi[-1]):
-                            break
-
-                if lastpath:
-                    templist = templist[lastin:]
-                    allresults.append(
-                        (
-                            lastin - len(lastpath) + abscounter,
-                            lastin + abscounter,
-                            lastpath,
+                        templist = templist[lastin:]
+                        allresults.append(
+                            (
+                                lastin - len(lastpath) + abscounter,
+                                lastin + abscounter,
+                                lastpath,
+                            )
                         )
-                    )
-                    abscounter = lastin + abscounter
-                    lastin = 0
+                        abscounter = lastin + abscounter
+                        lastin = 0
+                        break
+                if not somethinfound:
                     break
-            if not somethinfound:
-                break
 
-        return allresults
+            return allresults
 
-    lis = list(t)
-    laazx = _get_path_from_string(lis)
-    allres = []
-    wholestringnew = []
-    ini = 0
-    lastindi = 0
-    for s, e, text in laazx:
-        sta, end = check_if_space(text)
-        endx = end * " "
-        s += sta
-        e -= end
+        lis = list(t)
+        laazx = _get_path_from_string(lis)
+        allres = []
+        wholestringnew = []
+        ini = 0
+        lastindi = 0
+        for s, e, text in laazx:
+            sta, end = check_if_space(text)
+            endx = end * " "
+            s += sta
+            e -= end
 
-        longname = wholestring[s:e]
-        if convert_to_abs_path:
-            if ":" not in longname:
-                p = pathlib.Path(longname)
-                longname = p.resolve()
-                longname = os.path.normpath(longname)
-        shortname = get_short_path_name(longname)
-        shortname = os.path.normpath(shortname)
-        wholestringnew.append(wholestring[lastindi:s])
-        wholestringnew.append(shortname)
-        wholestringnew.append(endx)
+            longname = wholestring[s:e]
+            if convert_to_abs_path:
+                if ":" not in longname:
+                    p = pathlib.Path(longname)
+                    longname = p.resolve()
+                    longname = os.path.normpath(longname)
+            shortname = get_short_path_name(longname)
+            shortname = os.path.normpath(shortname)
+            wholestringnew.append(wholestring[lastindi:s])
+            wholestringnew.append(shortname)
+            wholestringnew.append(endx)
 
-        lastindi = e + end
-        if ini == len(laazx) - 1:
-            wholestringnew.append(wholestring[lastindi:])
-        ini += 1
-        kind = ""
-        if os.path.ismount(shortname):
-            kind = "mount"
-        elif os.path.isfile(shortname):
-            kind = "file"
-        elif os.path.isdir(shortname):
-            kind = "dir"
-        elif os.path.islink(shortname):
-            kind = "link"
-        allres.append([s, e, longname, shortname, kind])
-    return "".join(wholestringnew)  if wholestringnew else t
-
+            lastindi = e + end
+            if ini == len(laazx) - 1:
+                wholestringnew.append(wholestring[lastindi:])
+            ini += 1
+            kind = ""
+            if os.path.ismount(shortname):
+                kind = "mount"
+            elif os.path.isfile(shortname):
+                kind = "file"
+            elif os.path.isdir(shortname):
+                kind = "dir"
+            elif os.path.islink(shortname):
+                kind = "link"
+            allres.append([s, e, longname, shortname, kind])
+        return "".join(wholestringnew)  if wholestringnew else t
+    except Exception:
+        return t
 
 def get_short_path_name(long_name):
     r"""
