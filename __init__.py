@@ -194,7 +194,7 @@ def convert_path_in_string(t, minlen=None, convert_to_abs_path=True):
         elif os.path.islink(shortname):
             kind = "link"
         allres.append([s, e, longname, shortname, kind])
-    return "".join(wholestringnew)  # , wholestringnew, allres
+    return "".join(wholestringnew)  if wholestringnew else t
 
 
 def get_short_path_name(long_name):
